@@ -1,12 +1,6 @@
 #pragma once
 #include "constants.h"
 
-typedef union my_union_u
-{
-    float f;
-    uint32_t i;
-} my_union_t;
-
 struct Point
 {
     float x;

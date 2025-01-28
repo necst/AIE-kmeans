@@ -29,7 +29,7 @@ bool get_xclbin_path(std::string &xclbin_file);
 std::ostream &bold_on(std::ostream &os);
 std::ostream &bold_off(std::ostream &os);
 
-// Print the output of the software
+// Prints a vector of clusters
 void printCluster(const std::vector<Cluster> &output)
 {
     for (size_t i = 0; i < output.size(); i++)
@@ -45,16 +45,17 @@ int32_t checkResult(const std::vector<Cluster> &sw_output, const std::vector<Clu
 {
     std::vector<bool> matched(num_clusters, false);
 
-    // Check if the clusters of the software and hardware match
+    // Iterates over the output of the software implementation
     for (size_t i = 0; i < num_clusters; i++)
     {
+        // Iterates over the output of the hardware implementation
         for (size_t j = 0; j < num_clusters; j++)
         {
             if (!matched[j])
             {
                 if (sw_output[i].numPoints == hw_output[j].numPoints)
                 {
-                    if (std::abs(sw_output[i].x - hw_output[j].x) <= 0.0001 && std::abs(sw_output[i].y - hw_output[j].y) <= 0.0001)
+                    if (std::abs(sw_output[i].x - hw_output[j].x) < 1 && std::abs(sw_output[i].y - hw_output[j].y) < 1)
                     {
                         matched[j] = true;
                     }
@@ -77,6 +78,7 @@ int32_t checkResult(const std::vector<Cluster> &sw_output, const std::vector<Clu
     return EXIT_SUCCESS;
 }
 
+// MacQueen's implementation of the K-Means algorithm
 std::vector<Cluster> k_means(const std::vector<float> &input, int32_t num_clusters, int32_t num_points)
 {
     std::vector<Cluster> clusters(num_clusters);
@@ -89,13 +91,13 @@ std::vector<Cluster> k_means(const std::vector<float> &input, int32_t num_cluste
 
     size_t start = num_clusters * 2;
 
-    // K-Means algorithm
+    // Read the coordinates of the points
     for (size_t i = 0; i < num_points; i++)
     {
         Point point = Point(input[start + i * 2], input[start + i * 2 + 1]);
         std::vector<float> distances(num_clusters, 0);
 
-        // Calculate the distance between the point and each cluster
+        // Calculates the distance between the point and each cluster
         for (size_t j = 0; j < num_clusters; j++)
         {
             float x_diff = clusters[j].x - point.x;
@@ -103,32 +105,35 @@ std::vector<Cluster> k_means(const std::vector<float> &input, int32_t num_cluste
             distances[j] = std::pow(x_diff, 2) + std::pow(y_diff, 2);
         }
 
-        // Assign the point to the nearest cluster
+        // Finds the index of the nearest cluster
         auto min_distance = std::min_element(distances.begin(), distances.end());
         int cluster_index = std::distance(distances.begin(), min_distance);
+        
+        // Assigns the point to the nearest cluster and updates the cluster coordinates
         clusters[cluster_index].addPoint(point);
     }
 
     return clusters;
 }
 
+// Checks if the constraints are satisfied
 bool checkConstraints(int num_clusters, int num_points)
 {
-    if (num_clusters % 4 != 0)
+    if (num_clusters % POINTS != 0)
     {
-        std::cout << "Error: The number of clusters must be a multiple of 4" << std::endl;
+        std::cout << "Error: The number of clusters must be a multiple of " << POINTS << std::endl;
         return false;
     }
 
     if (num_clusters > MAX_CLUSTERS)
     {
-        std::cout << "Error: The number of clusters must be less than or equal to 8" << std::endl;
+        std::cout << "Error: The number of clusters must be less than or equal to " << MAX_CLUSTERS << std::endl;
         return false;
     }
 
-    if (num_points % 4 != 0 || num_points < 4)
+    if (num_points % POINTS != 0 || num_points < POINTS)
     {
-        std::cout << "Error: The number of points must be a multiple of 4" << std::endl;
+        std::cout << "Error: The number of points must be a multiple of " << POINTS << std::endl;
         return false;
     }
 
@@ -137,18 +142,21 @@ bool checkConstraints(int num_clusters, int num_points)
 
 int main(int argc, char *argv[])
 {
-    int step = 3;
-    int max_pow = 7;
-    std::vector<int32_t> clusters_vec = {4};
+    // Step and maximum power of 2 for the number of points
+    int step = 2;
+    int max_pow = 22;
+
+    std::vector<int32_t> clusters_vec = {4, 8, 12, 16, 20, 24, 28, 32};
     int num_clusters, num_points;
 
+    // Open the csv file to write the execution times
     std::ofstream csv_file;
     csv_file.open("time.csv", std::ios_base::app);
-    csv_file << "Number of clusters, Number of points, Software time (us), Hardware time (us)" << std::endl;
+    csv_file << "n_clusters,n_points,sw_time,hw_time" << std::endl;
 
     for (size_t j = 0; j < clusters_vec.size(); j++)
     {
-        for (size_t pow = 3; pow < max_pow + 1; pow += step)
+        for (size_t pow = 9; pow < max_pow + 1; pow += step)
         {
             num_clusters = clusters_vec[j];
             num_points = std::pow(2, pow);
@@ -161,6 +169,7 @@ int main(int argc, char *argv[])
                 return EXIT_FAILURE;
             }
 
+            // ------------------------------------------------INITIALIZING THE BUFFERS------------------------------------------
             int32_t input_size = (num_clusters + num_points) * 2;
             int32_t output_size = num_clusters * 2;
 
@@ -174,17 +183,16 @@ int main(int argc, char *argv[])
             // Generate random float coordinates for points and clusters using random number generator
             std::random_device rd;
             std::mt19937 rng(rd());
-            std::uniform_real_distribution<float> dist(-5.0, 5.0);
+            std::uniform_real_distribution<float> dist(-500.0, 500.0);
 
             // Generate random coordinates for clusters
             for (size_t i = 0; i < num_clusters; i++)
             {
-                // Round the generated coordinates to 4 decimal places
-                input_buffer_sw[i * 2 + 0] = std::round(dist(rng) * 10000.0) / 10000.0;
-                input_buffer_sw[i * 2 + 1] = std::round(dist(rng) * 10000.0) / 10000.0;
+                input_buffer_sw[i * 2 + 0] = dist(rng);
+                input_buffer_sw[i * 2 + 1] = dist(rng);
                 // std::cout << "Cluster " << i << ": (" << input_buffer_sw[i * 2] << ", " << input_buffer_sw[i * 2 + 1] << ")\t";
 
-                // Copy the cluster coordinates to the input buffer as integers pointing to the float
+                // Copy the cluster coordinates to the input buffer as integers pointing to floats
                 u_int32_t val_x = *reinterpret_cast<u_int32_t *>(&input_buffer_sw[i * 2 + 0]);
                 u_int32_t val_y = *reinterpret_cast<u_int32_t *>(&input_buffer_sw[i * 2 + 1]);
 
@@ -199,11 +207,11 @@ int main(int argc, char *argv[])
             {
                 int32_t idx = (num_clusters + i) * 2;
 
-                input_buffer_sw[idx + 0] = std::round(dist(rng) * 10000.0) / 10000.0;
-                input_buffer_sw[idx + 1] = std::round(dist(rng) * 10000.0) / 10000.0;
+                input_buffer_sw[idx + 0] = dist(rng);
+                input_buffer_sw[idx + 1] = dist(rng);
                 // std::cout << "Point " << i << ": (" << input_buffer_sw[i * 2] << ", " << input_buffer_sw[i * 2 + 1] << ")\t";
 
-                // Copy the point coordinates to the input buffer as integers pointing to the float
+                // Copy the point coordinates to the input buffer as integers pointing to floats
                 int32_t val_x = *reinterpret_cast<int32_t *>(&input_buffer_sw[i * 2 + 0]);
                 int32_t val_y = *reinterpret_cast<int32_t *>(&input_buffer_sw[i * 2 + 1]);
 
@@ -256,29 +264,28 @@ int main(int argc, char *argv[])
             buffer_setup_aie.write(input_buffer_hw.data());
             buffer_setup_aie.sync(XCL_BO_SYNC_BO_TO_DEVICE);
 
+            // ------------------------------------------------EXECUTING THE HARDWARE------------------------------------------
             auto hw_start = std::chrono::high_resolution_clock::now();
             // run the kernel
             run_sink_from_aie.start();
             run_setup_aie.start();
-
             // wait for the kernel to finish
             run_setup_aie.wait();
             run_sink_from_aie.wait();
-
             auto hw_end = std::chrono::high_resolution_clock::now();
-            auto hw_exec_ms = (hw_end - hw_start) / std::chrono::microseconds(1);
-            std::cout << "Hardware execution took " << hw_exec_ms << " microseconds." << std::endl;
+
+            // Calculate the execution time of the hardware
+            auto hw_exec_us = std::chrono::duration_cast<std::chrono::microseconds>(hw_end - hw_start).count();
+            std::cout << "Hardware execution took " << hw_exec_us << " microseconds." << std::endl;
 
             // read the output buffer
             buffer_sink_from_aie.sync(XCL_BO_SYNC_BO_FROM_DEVICE);
             buffer_sink_from_aie.read(output_buffer.data());
 
+            // Convert the output buffer to a vector of clusters
             for (size_t i = 0; i < num_clusters; i++)
             {
-                float x = std::round(output_buffer[i * 2 + 0] * 10000.0) / 10000.0;
-                float y = std::round(output_buffer[i * 2 + 1] * 10000.0) / 10000.0;
-
-                hw_result[i] = Cluster(x, y);
+                hw_result[i] = Cluster(output_buffer[i * 2], output_buffer[i * 2 + 1]);
             }
 
             // print the output
@@ -286,23 +293,14 @@ int main(int argc, char *argv[])
             printCluster(hw_result);
             std::cout << std::endl; */
 
+            //----------------------------------------------EXECUTING THE SOFTWARE------------------------------------------
             auto sw_start = std::chrono::high_resolution_clock::now();
-            // run the kernel
             sw_result = k_means(input_buffer_sw, num_clusters, num_points);
-
             auto sw_end = std::chrono::high_resolution_clock::now();
-            auto sw_exec_ms = (sw_end - sw_start) / std::chrono::microseconds(1);
 
-            std::cout << "Software execution took " << sw_exec_ms << " microseconds." << std::endl;
-
-            for (size_t i = 0; i < num_clusters; i++)
-            {
-                float x = std::round(sw_result[i].x * 10000.0) / 10000.0;
-                float y = std::round(sw_result[i].y * 10000.0) / 10000.0;
-
-                sw_result[i].x = x;
-                sw_result[i].y = y;
-            }
+            // Calculate the execution time of the software
+            auto sw_exec_us = std::chrono::duration_cast<std::chrono::microseconds>(sw_end - sw_start).count();
+            std::cout << "Software execution took " << sw_exec_us << " microseconds." << std::endl;
 
             // print the output
             /* std::cout << "Expected results: ";
@@ -315,7 +313,7 @@ int main(int argc, char *argv[])
                 std::cout << bold_on << "Test passed" << bold_off << std::endl;
 
                 // Write the time and the timestamp to the csv
-                csv_file << num_clusters << ", " << num_points << ", " << sw_exec_ms << ", " << hw_exec_ms << std::endl;
+                csv_file << num_clusters << "," << num_points << "," << sw_exec_us << "," << hw_exec_us << std::endl;
             }
             else
             {

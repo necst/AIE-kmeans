@@ -5,10 +5,16 @@
 #include "../common/common.h"
 #include "ap_fixed.h"
 
-void compute(int32_t num_clusters, int32_t num_points, ap_uint<sizeof(float) * 8 * 8> *input, hls::stream<ap_uint<sizeof(float) * 8 * 8>> &s)
+// Move the data from the host to the AIE
+void compute(
+	int32_t num_clusters, 
+	int32_t num_points, 
+	ap_uint<sizeof(float) * 8 * COORDS_IN> *input, 
+	hls::stream<ap_uint<sizeof(float) * 8 * COORDS_IN>> &s
+	)
 {
-	// Create a temporary variable to store the data (8 integers at a time = 4 points)
-	ap_uint<sizeof(float) * 8 * 8> tmp;
+	// Create a temporary variable to store the data
+	ap_uint<sizeof(float) * 8 * COORDS_IN> tmp;
 
 	// Write the number of clusters and the number of points
 	tmp.range(31, 0) = num_clusters;
@@ -16,18 +22,31 @@ void compute(int32_t num_clusters, int32_t num_points, ap_uint<sizeof(float) * 8
 	tmp.range(255, 64) = 0;
 	s.write(tmp);
 
-	// Write the clusters and points coordinates, assuming that their number is a multiple of 4
-	int32_t read_size = (num_clusters + num_points) >> 2;
-	for (int32_t i = 0; i < read_size; i++)
+	// Write the clusters coordinates, assuming that each vector can be completely filled
+	int32_t cluster_read = num_clusters >> POINTS_LOG;
+	for (int32_t i = 0; i < cluster_read; i++)
 	{
 #pragma HLS pipeline II = 1
 		s.write(input[i]);
+	}
+
+	// Write the points coordinates, assuming that each vector can be completely filled
+	int32_t point_read = num_points >> POINTS_LOG;
+	for (int32_t i = 0; i < point_read; i++)
+	{
+#pragma HLS pipeline II = 1
+		s.write(input[cluster_read + i]);
 	}
 }
 
 extern "C"
 {
-	void setup_aie(int32_t num_clusters, int32_t num_points, ap_uint<sizeof(float) * 8 * 8> *input, hls::stream<ap_uint<sizeof(float) * 8 * 8>> &s)
+	void setup_aie(
+		int32_t num_clusters, 
+		int32_t num_points, 
+		ap_uint<sizeof(float) * 8 * COORDS_IN> *input, 
+		hls::stream<ap_uint<sizeof(float) * 8 * COORDS_IN>> &s
+		)
 	{
 // PRAGMA for stream
 #pragma HLS interface axis port = s
