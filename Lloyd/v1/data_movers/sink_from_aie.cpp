@@ -5,7 +5,6 @@
 #include "../common/common.h"
 #include <random>
 
-
 void compute(hls::stream<float> &in, float *out, int32_t num_clusters)
 {
     float discard;
@@ -15,7 +14,7 @@ void compute(hls::stream<float> &in, float *out, int32_t num_clusters)
     {
 #pragma HLS pipeline II = 1
 
-        // Read the cluster coordinates from the first AIE
+        // Read the packed data from the input streams
         float x = in.read();
         float y = in.read();
         discard = in.read();
@@ -41,7 +40,7 @@ void compute(hls::stream<float> &in, float *out, int32_t num_clusters)
 
 extern "C"
 {
-    void sink_from_aie(hls::stream<float> &input, float *output, int32_t num_clusters)
+    void sink_from_aie(hls::stream</* ap_uint<sizeof(float) * 8 * 8> */float> &input, float *output, int32_t num_clusters)
     {
 // PRAGMA for stream
 #pragma HLS interface axis port = input
