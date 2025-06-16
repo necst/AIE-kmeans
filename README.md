@@ -12,7 +12,7 @@ This repository contains the source code of the Project "A Hardware/Software Co-
 | **Supervisor name**      | Davide Conficconi (davide.conficconi@polimi.it) |
 | **Supervisor name**      | Giuseppe Sorrentino (giuseppe.sorrentino@polimi.it) |
 | **Board used**           | AMD-Xilinx Versal VCK5000 |
-| **Software version**     | 2024.1 |
+| **Software version**     | 2022.2 |
 
 ## Main Structure
 The archive contains two different implementations of the K-means Clustering algorithm: MacQueen's and Lloyd's. Each version might have multiple implementations, described in detail in the README file inside each folder. Each implementation is structured as follows:
