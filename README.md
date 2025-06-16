@@ -1,18 +1,4 @@
-# AIE-kmeans
-Towards an HW/SW Co-Design Approach for Versal-Based Kmeans Acceleration
-
-The repo will be populated soon :) Keep in Touch! 
-
-## Info & Description
-This repository contains the source code of the Project "A Hardware/Software Co-Design Approach for Versal-Based Kmeans Acceleration". 
-
-|| Information |
-|----------------------|-----|
-| **Student**              | Eleonora Cabai (eleonora.cabai@mail.polimi.it) |
-| **Supervisor name**      | Davide Conficconi (davide.conficconi@polimi.it) |
-| **Supervisor name**      | Giuseppe Sorrentino (giuseppe.sorrentino@polimi.it) |
-| **Board used**           | AMD-Xilinx Versal VCK5000 |
-| **Software version**     | 2022.2 |
+# Accelerating K-Means: A Vectorized Approach for AI Engines & Neural Processing Units
 
 ## Main Structure
 The archive contains two different implementations of the K-means Clustering algorithm: MacQueen's and Lloyd's. Each version might have multiple implementations, described in detail in the README file inside each folder. Each implementation is structured as follows:
@@ -82,3 +68,17 @@ If you need to move your bitstream and executable on the target machine, you may
 
 _make build_and_pack TARGET=hw/hw_emu_ :  it allows you to pack our build in a single folder. Notice that the hw_emu does not have to be moved on the device, it must be executed on the development machine.
 
+
+## Paper Citation
+
+If you find this repository useful, please use the following citation:
+
+```
+@inproceedings{cabai2025accelerating,
+      title={Accelerating K-Means: A Vectorized Approach for AI Engines \& Neural Processing Units},
+    author = {Cabai, Eleonora and Sorrentino, Giuseppe and Marco D. Santambrogio and Davide Conficconi},
+    year = 2025,
+    month = {sep},
+  booktitle={2025 35th International Conference on Field-Programmable Logic and Applications (FPL)}
+ } 
+```
